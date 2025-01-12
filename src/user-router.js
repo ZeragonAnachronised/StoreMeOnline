@@ -2,6 +2,8 @@ const Router = require('../framework/Router')
 const fs = require('fs')
 const crypto = require('crypto')
 const path = require('path')
+const dirTree = require('directory-tree')
+const remover = require('./reccurentKeyRemover')
 
 const gen_token = () => {
     const token = crypto.randomBytes(32).toString('hex')
@@ -128,7 +130,7 @@ router.post('/create_dir', (req, res) => {
         Object.keys(jsonData).forEach(key => {
             if(key == req.body['id']) {
                 if(jsonData[key]['token'] == req.body['token']) {
-                    fs.mkdir(path.resolve(__dirname, '..', 'usersData', `${jsonData[key]['name']}[${req.body['id']}]`, path.join(...req.body['path'])), (err) => {
+                    fs.mkdir(path.resolve(__dirname, '..', 'usersData', `${jsonData[key]['name']}[${req.body['id']}]`, path.join(...req.body['fullpath'])), (err) => {
                         if(err) throw err
                     })
                     res.send({
@@ -174,6 +176,45 @@ router.post('/delete_dir', (req, res) => {
                     res.send({
                         success: true
                     })
+                }
+                else {
+                    res.writeHead(403, {
+                        'Content-Type': 'application/json'
+                    })
+                    res.end(JSON.stringify({
+                        success: false,
+                        message: 'some error'
+                    }))
+                }
+                hit = true
+            }
+        })
+        if(!hit) {
+            res.writeHead(403, {
+                'Content-Type': 'application/json'
+            })
+            res.end(JSON.stringify({
+                success: false,
+                message: 'some error 2'
+            }))
+        }
+    })
+})
+
+router.post('/tree', (req, res) => {
+    fs.readFile('users.json', 'utf8', (err, data) => {
+        if(err) throw err
+
+        let jsonData = JSON.parse(data)
+        let hit = false
+        Object.keys(jsonData).forEach(key => {
+            if(key == req.body['id']) {
+                if(jsonData[key]['token'] == req.body['token']) {
+                    let tree = dirTree(path.join(__dirname, '..', 'usersData', `${jsonData[key]['name']}[${key}]`, path.join(...req.body.fullpath)), (err) => {
+                        if(err) throw err
+                    })
+                    tree = remover(tree)
+                    res.send(tree)
                 }
                 else {
                     res.writeHead(403, {
